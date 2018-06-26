@@ -89,6 +89,7 @@ void loop()
     default: 
         break;
     }
+    //Serial.println();
 
   if (client) {                               // if you get a client,
     Serial.println("New client");             // print a message out the serial port
@@ -101,11 +102,26 @@ void loop()
         // printing the stream to the serial monitor will slow down
         // the receiving of data from the ESP filling the serial buffer
         //Serial.write(c);
+        
+        // you got two newline characters in a row
+        // that's the end of the HTTP request, so send a response
+        if (buf.endsWith("\r\n\r\n")) {
+          break;
+        }
+
+        else if (buf.endsWith("GET / ")) 
+          response_type = 1;
+        else if (buf.endsWith("GET /music.html?onoff=1")) 
+          response_type = 2;        
+        else if (buf.endsWith("GET /music.html?onoff=0")) 
+          response_type = 3;
       }
     }
-    response_type = 1;
+
     switch(response_type){
         case 1: show_main_page(client); break;
+        case 2: show_on_off_page(client, true); break;
+        case 3: show_on_off_page(client, false); break;
     }
     
     // close the connection
@@ -114,6 +130,34 @@ void loop()
   }
 }
 
+
+void show_on_off_page(WiFiEspClient client, boolean status)
+{
+  music_onoff  = status;
+  
+
+  // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
+  // and a content-type so the client knows what's coming, then a blank line:
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-type:text/html");
+  client.println();
+  
+  // the content of the HTTP response follows the header:
+  client.println("<html lang='ko'>");
+  client.println("<head><title>IoT18</title><meta charset='UTF-8'></head>");
+  client.println("<body style='margin:auto; text-align:center'>");
+  
+  client.print("<h3>Now led is ");
+  client.println(music_onoff ? "On. </h3>":"Off. </h3>");
+  
+  client.println("<br /><br />");
+  client.println("<a href=\'/\'>Main Page</a>");
+
+  client.println("</body>");
+  client.println("</html>");
+  // The HTTP response ends with another blank line:
+  client.println();
+}
 
 void show_main_page(WiFiEspClient client)
 {
@@ -130,10 +174,8 @@ void show_main_page(WiFiEspClient client)
   client.println("<body>");
   client.println("<div style='width: 300px; text-align:center; border:1px solid #555; margin:auto; padding:30px 30px'>");
 
-  client.println("<h2>Temperature is ");
-  client.println(DHT11.temperature+"</h2>");
-  client.println("<h2>Humidity is ");
-  client.println(DHT11.humidity+"</h2>");
+  //client.println("<h2>Temperature is ");
+  //client.println(temp+"</h2>");
 
   if(DHT11.humidity>10 && DHT11.humidity<=20) {
     client.println("<a href='https://www.youtube.com/playlist?list=PL5barlq8kvpZucAQfAhAyHdxnbhmOZlaK'>따뜻해지는 노래</a></div>");
@@ -145,14 +187,14 @@ void show_main_page(WiFiEspClient client)
     client.println("<a href='https://www.youtube.com/playlist?list=PL5barlq8kvpZxo5mFdJ9a92CwZdFiMH6V'>시원해지는 노래</a></div>");
   }
   client.println("<div style='text-align:center; margin-top:60px'>");
-//  client.print("Currently... music player is ");
-//  client.println(music_onoff ? "On.":"Off.");
-//  
-//  client.println("<br />");
-//  client.println("<FORM method=\"get\" action=\"/music.html\">");
-//  client.println("<P><INPUT type=\"radio\" name=\"onoff\" value=\"1\">Turn On");
-//  client.println("<P><INPUT type=\"radio\" name=\"onoff\" value=\"0\">Turn off");
-//  client.println("<P><INPUT type=\"submit\" value=\"Submit\"></FORM></div>");
+  client.print("Currently... music player is ");
+  client.println(music_onoff ? "On.":"Off.");
+  
+  client.println("<br />");
+  client.println("<FORM method=\"get\" action=\"/music.html\">");
+  client.println("<P><INPUT type=\"radio\" name=\"onoff\" value=\"1\">Turn On");
+  client.println("<P><INPUT type=\"radio\" name=\"onoff\" value=\"0\">Turn off");
+  client.println("<P><INPUT type=\"submit\" value=\"Submit\"></FORM></div>");
   
   client.println("</body>");
   client.println("</html>");
